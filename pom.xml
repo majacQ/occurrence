@@ -122,7 +122,7 @@
 
     <!-- VERSIONS -->
     <hikaricp.version>3.2.0</hikaricp.version>
-    <amqp-client.version>3.0.2</amqp-client.version>
+    <amqp-client.version>4.8.0</amqp-client.version>
     <freemarker.version>2.3.31</freemarker.version>
     <netty.version>3.9.9.Final</netty.version>
     <netty-all.version>4.1.48.Final</netty-all.version>
@@ -154,7 +154,7 @@
     <guava-hbase-test.version>12.0.1</guava-hbase-test.version>
 
     <!-- Version for ES client -->
-    <httpclient.version>4.5.2</httpclient.version>
+    <httpclient.version>4.5.13</httpclient.version>
     <httpcore.version>4.4.13</httpcore.version>
 
     <jackson.version>2.11.3</jackson.version>
@@ -164,7 +164,11 @@
     <mbknor-jackson-jsonschema.version>1.0.39</mbknor-jackson-jsonschema.version>
 
     <jcommander.version>1.35</jcommander.version>
+  <<<<<<< dependabot/maven/ch.qos.logback-logback-core-1.2.9
+    <logback.version>1.2.9</logback.version>
+  =======
     <logback.version>1.2.0</logback.version>
+ >>>>>>> dev
     <logstash-encoder.version>4.6</logstash-encoder.version>
     <mail.version>1.4.5</mail.version>
     <mockito.version>3.1.0</mockito.version>
@@ -241,7 +245,7 @@
     <jacoco.merged.output.file>${coverage.dir}/jacoco.exec</jacoco.merged.output.file>
 
     <!-- es versions -->
-    <elasticsearch.version>7.10.0</elasticsearch.version>
+    <elasticsearch.version>7.14.0</elasticsearch.version>
     <testcontainers-elasticsearch.version>1.17.3</testcontainers-elasticsearch.version>
     <!-- Used to match version used by Elasticsearch-->
     <lucene.version>8.7.0</lucene.version>
