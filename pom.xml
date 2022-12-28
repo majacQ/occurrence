@@ -129,7 +129,7 @@
 
     <!-- Fixing to the version JUnit and Mockito are depending on -->
     <aopalliance.version>1.0</aopalliance.version>
-    <commons-beanutils.version>1.9.2</commons-beanutils.version>
+    <commons-beanutils.version>1.9.4</commons-beanutils.version>
     <commons-codec.version>1.6</commons-codec.version>
     <commons-digester.version>2.1</commons-digester.version>
     <commons-io.version>2.7</commons-io.version>
@@ -179,7 +179,7 @@
     <metainf-services.version>1.5</metainf-services.version>
 
     <super-csv.version>2.0.1</super-csv.version>
-    <commons-beanutils-core.version>1.8.3</commons-beanutils-core.version>
+    <commons-beanutils-core.version>1.9.4</commons-beanutils-core.version>
 
     <!-- These must be compatible with Spark version (see https://stackoverflow.com/a/50114083) -->
     <janino.version>3.0.8</janino.version>
