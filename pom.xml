@@ -165,7 +165,7 @@
 
     <jcommander.version>1.35</jcommander.version>
   <<<<<<< dependabot/maven/ch.qos.logback-logback-core-1.2.9
-    <logback.version>1.2.9</logback.version>
+    <logback.version>1.2.13</logback.version>
   =======
     <logback.version>1.2.0</logback.version>
  >>>>>>> dev
