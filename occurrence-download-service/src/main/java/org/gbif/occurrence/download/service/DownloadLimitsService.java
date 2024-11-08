@@ -13,11 +13,10 @@
  */
 package org.gbif.occurrence.download.service;
 
-import org.gbif.api.model.common.paging.PagingRequest;
-import org.gbif.api.model.common.paging.PagingResponse;
 import org.gbif.api.model.occurrence.Download;
 import org.gbif.api.model.occurrence.DownloadRequest;
 import org.gbif.api.model.occurrence.PredicateDownloadRequest;
+import org.gbif.api.model.occurrence.SqlDownloadRequest;
 import org.gbif.api.service.registry.OccurrenceDownloadService;
 import org.gbif.occurrence.download.service.conf.DownloadLimits;
 
@@ -44,18 +43,17 @@ public class DownloadLimitsService {
    * Validates if the download is under the limits of simultaneous downloads.
    */
   public String exceedsSimultaneousDownloadLimit(String userName) {
-    PagingResponse<Download> userDownloads = occurrenceDownloadService.listByUser(userName,
-                                                        new PagingRequest(0, 0),
-                                                        Download.Status.EXECUTING_STATUSES);
-    if (userDownloads.getCount() >= downloadLimits.getMaxUserDownloads()) {
+    long userDownloadsCount = occurrenceDownloadService.countByUser(userName,
+                                                        Download.Status.EXECUTING_STATUSES, null);
+    if (userDownloadsCount >= downloadLimits.getMaxUserDownloads()) {
       return "User "+userName+" has too many simultaneous downloads; the limit is "+downloadLimits.getMaxUserDownloads()+".\n"
       + "Please wait for some to complete, or cancel any unwanted downloads.  See your user page.";
     }
 
-    PagingResponse<Download> executingDownloads = occurrenceDownloadService.list(new PagingRequest(0, 0),
-                                                                                 Download.Status.EXECUTING_STATUSES, null);
+    long executingDownloadsCount =
+        occurrenceDownloadService.count(Download.Status.EXECUTING_STATUSES, null);
 
-    if (downloadLimits.violatesLimits(userDownloads.getCount().intValue(), executingDownloads.getCount().intValue())) {
+    if (downloadLimits.violatesLimits((int) userDownloadsCount, (int) executingDownloadsCount)) {
       return "Too many downloads are running.  Please wait for some to complete: see the GBIF health status page.";
     }
 
@@ -70,6 +68,8 @@ public class DownloadLimitsService {
 
     if (request instanceof PredicateDownloadRequest) {
       return downloadLimits.violatesFilterRules(((PredicateDownloadRequest)request).getPredicate());
+    } else if (request instanceof SqlDownloadRequest) {
+      return downloadLimits.violatesSqlFilterRules(((SqlDownloadRequest)request).getSql());
     }
 
     return null;

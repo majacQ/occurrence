@@ -8,6 +8,7 @@ USE ${r"${hiveDB}"};
 CREATE TEMPORARY FUNCTION contains AS 'org.gbif.occurrence.hive.udf.ContainsUDF';
 CREATE TEMPORARY FUNCTION geoDistance AS 'org.gbif.occurrence.hive.udf.GeoDistanceUDF';
 CREATE TEMPORARY FUNCTION toISO8601 AS 'org.gbif.occurrence.hive.udf.ToISO8601UDF';
+CREATE TEMPORARY FUNCTION toISO8601Millis AS 'org.gbif.occurrence.hive.udf.ToISO8601MillisUDF';
 CREATE TEMPORARY FUNCTION toLocalISO8601 AS 'org.gbif.occurrence.hive.udf.ToLocalISO8601UDF';
 CREATE TEMPORARY FUNCTION cleanDelimiters AS 'org.gbif.occurrence.hive.udf.CleanDelimiterCharsUDF';
 CREATE TEMPORARY FUNCTION cleanDelimitersArray AS 'org.gbif.occurrence.hive.udf.CleanDelimiterArraysUDF';
@@ -71,7 +72,7 @@ SET hive.input.format=org.apache.hadoop.hive.ql.io.HiveInputFormat;
 
 --
 -- Creates the multimedia table
--- These will be small tables, so provide reducer hint to MR, to stop is spawning huge numbers
+-- These will be small tables, so provide reducer hint to MR, to stop it spawning huge numbers
 --
 SET mapred.reduce.tasks=5;
 -- Disabling hive auto join https://issues.apache.org/jira/browse/HIVE-2601.
@@ -92,4 +93,3 @@ SET mapred.reduce.tasks=1;
 CREATE TABLE ${r"${citationTable}"}
 ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
 AS SELECT datasetkey, count(*) as num_occurrences FROM ${r"${interpretedTable}"} WHERE datasetkey IS NOT NULL GROUP BY datasetkey;
-

@@ -98,10 +98,26 @@ public abstract class Queries {
 
   /**
    * @param useInitializers whether to convert dates, arrays etc to strings
+   * @return the select fields for the interpreted multimedia extension fields
+   */
+  public Map<String, InitializableField> selectMultimediaFields(boolean useInitializers) {
+    return selectDownloadFields(DownloadTerms.DOWNLOAD_MULTIMEDIA_TERMS, useInitializers);
+  }
+
+  /**
+   * @param useInitializers whether to convert dates, arrays etc to strings
    * @return the select fields for the internal download fields
    */
   Map<String, InitializableField> selectInternalFields(boolean useInitializers) {
     return selectDownloadFields(DownloadTerms.INTERNAL_DOWNLOAD_TERMS, useInitializers);
+  }
+
+  /**
+   * @param useInitializers whether to convert dates, arrays etc to strings
+   * @return the select fields for the internal search fields
+   */
+  public Map<String, InitializableField> selectInternalSearchFields(boolean useInitializers) {
+    return selectDownloadFields(DownloadTerms.INTERNAL_SEARCH_TERMS, useInitializers);
   }
 
   /**

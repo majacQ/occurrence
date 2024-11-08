@@ -13,6 +13,7 @@
  */
 package org.gbif.occurrence.download.query;
 
+import org.gbif.api.model.common.search.SearchParameter;
 import org.gbif.api.model.occurrence.search.OccurrenceSearchParameter;
 import org.gbif.api.model.predicate.SimplePredicate;
 import org.gbif.occurrence.search.es.OccurrenceBaseEsFieldMapper;
@@ -21,15 +22,16 @@ import org.gbif.predicate.query.EsQueryVisitor;
 import org.gbif.predicate.query.SQLQueryVisitor;
 import org.gbif.predicate.query.occurrence.OccurrenceTermsMapper;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.elasticsearch.index.query.RangeQueryBuilder;
+
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 public class QueryVisitorsFactory {
 
   @JsonDeserialize(as = OccurrenceSearchParameter.class)
   public static class OccurrenceSearchParameterMixin {}
 
-  public static SQLQueryVisitor<OccurrenceSearchParameter> createSqlQueryVisitor() {
+  public static SQLQueryVisitor<SearchParameter> createSqlQueryVisitor() {
     return new SQLQueryVisitor<>(new OccurrenceTermsMapper());
   }
 

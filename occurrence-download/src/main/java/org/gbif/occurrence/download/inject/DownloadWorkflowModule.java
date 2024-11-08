@@ -67,8 +67,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.experimental.UtilityClass;
 
-;
-
 /**
  * Utility factory class to create instances of common complex objects required by Download Actions.
  */
@@ -286,7 +284,6 @@ public class DownloadWorkflowModule  {
         case SIMPLE_AVRO:
         case SIMPLE_PARQUET:
         case SIMPLE_WITH_VERBATIM_AVRO:
-        case IUCN:
         case MAP_OF_LIFE:
         case BIONOMIA:
         default:

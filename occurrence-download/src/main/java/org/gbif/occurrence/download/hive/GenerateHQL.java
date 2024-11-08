@@ -51,7 +51,6 @@ public class GenerateHQL {
   private static final String SIMPLE_AVRO_DOWNLOAD_DIR = "download-workflow/simple-avro/hive-scripts";
   private static final String SIMPLE_PARQUET_DOWNLOAD_DIR = "download-workflow/simple-parquet/hive-scripts";
   private static final String SIMPLE_WITH_VERBATIM_AVRO_DOWNLOAD_DIR = "download-workflow/simple-with-verbatim-avro/hive-scripts";
-  private static final String IUCN_DOWNLOAD_DIR = "download-workflow/iucn/hive-scripts";
   private static final String MAP_OF_LIFE_DOWNLOAD_DIR = "download-workflow/map-of-life/hive-scripts";
   private static final String AVRO_SCHEMAS_DIR = "create-tables/avro-schemas";
 
@@ -70,14 +69,13 @@ public class GenerateHQL {
       File outDir = new File(args[0]);
       Preconditions.checkState(outDir.exists() && outDir.isDirectory(), "Output directory must exist");
 
-      // create the sub directories into which we will write
+      // create the subdirectories into which we will write
       File createTablesDir = new File(outDir, CREATE_TABLES_DIR);
       File downloadDir = new File(outDir, DOWNLOAD_DIR);
       File simpleCsvDownloadDir = new File(outDir, SIMPLE_CSV_DOWNLOAD_DIR);
       File simpleWithVerbatimAvroDownloadDir = new File(outDir, SIMPLE_WITH_VERBATIM_AVRO_DOWNLOAD_DIR);
       File simpleAvroDownloadDir = new File(outDir, SIMPLE_AVRO_DOWNLOAD_DIR);
       File simpleParquetDownloadDir = new File(outDir, SIMPLE_PARQUET_DOWNLOAD_DIR);
-      File iucnDownloadDir = new File(outDir, IUCN_DOWNLOAD_DIR);
       File mapOfLifeDownloadDir = new File(outDir, MAP_OF_LIFE_DOWNLOAD_DIR);
       File avroSchemasDir = new File(outDir, AVRO_SCHEMAS_DIR);
 
@@ -87,7 +85,6 @@ public class GenerateHQL {
       simpleAvroDownloadDir.mkdirs();
       simpleParquetDownloadDir.mkdirs();
       simpleWithVerbatimAvroDownloadDir.mkdirs();
-      iucnDownloadDir.mkdirs();
       mapOfLifeDownloadDir.mkdirs();
       avroSchemasDir.mkdirs();
 
@@ -107,7 +104,6 @@ public class GenerateHQL {
       generateSimpleParquetQueryHQL(cfg, simpleParquetDownloadDir);
       generateSimpleWithVerbatimAvroQueryHQL(cfg, simpleWithVerbatimAvroDownloadDir);
       generateSimpleWithVerbatimAvroSchema(cfg, simpleWithVerbatimAvroDownloadDir.getParentFile());
-      generateIucnQueryHQL(cfg, iucnDownloadDir);
       generateMapOfLifeQueryHQL(cfg, mapOfLifeDownloadDir);
       generateMapOfLifeSchema(cfg, mapOfLifeDownloadDir.getParentFile());
 
@@ -129,10 +125,10 @@ public class GenerateHQL {
    */
   private static void generateOccurrenceAvroTableHQL(Configuration cfg, File outDir) throws IOException, TemplateException {
 
-    try (FileWriter createTableScript = new FileWriter(new File(outDir, "create-occurrence-avro.q"));
+    try (FileWriter createTableScript = new FileWriter(new File(outDir, "create-occurrence-hive-tables.q"));
          FileWriter swapTablesScript = new FileWriter(new File(outDir, "swap-tables.q"));
          FileWriter dropExtensionsTablesScript = new FileWriter(new File(outDir, "drop-extension-tables.q"))) {
-      Template createTableTemplate = cfg.getTemplate("create-tables/create-occurrence-avro.ftl");
+      Template createTableTemplate = cfg.getTemplate("create-tables/create-occurrence-hive-tables.ftl");
       Map<String, Object> data = ImmutableMap.of(FIELDS, OccurrenceHDFSTableDefinition.definition(),
                                                  "extensions", ExtensionTable.tableExtensions());
       createTableTemplate.process(data, createTableScript);
@@ -165,12 +161,14 @@ public class GenerateHQL {
   private static void generateQueryHQL(Configuration cfg, File outDir) throws IOException, TemplateException {
     try (FileWriter out = new FileWriter(new File(outDir, "execute-query.q"))) {
       Template template = cfg.getTemplate("download/execute-query.ftl");
-      Map<String, Object> data = ImmutableMap.of(
-        "verbatimFields", HIVE_QUERIES.selectVerbatimFields().values(),
-        "interpretedFields", HIVE_QUERIES.selectInterpretedFields(false).values(),
-        "initializedInterpretedFields", HIVE_QUERIES.selectInterpretedFields(true).values(),
-        "extensions", ExtensionTable.tableExtensions()
-      );
+      Map<String, Object> data = ImmutableMap.<String, Object>builder()
+        .put("verbatimFields", HIVE_QUERIES.selectVerbatimFields().values())
+        .put("interpretedFields", HIVE_QUERIES.selectInterpretedFields(false).values())
+        .put("initializedInterpretedFields", HIVE_QUERIES.selectInterpretedFields(true).values())
+        .put("multimediaFields", HIVE_QUERIES.selectMultimediaFields(false).values())
+        .put("initializedMultimediaFields", HIVE_QUERIES.selectMultimediaFields(true).values())
+        .put("extensions", ExtensionTable.tableExtensions())
+        .build();
       template.process(data, out);
     }
     generateDropTableQueryHQL(cfg, outDir);
@@ -309,21 +307,6 @@ public class GenerateHQL {
     simpleFields.values().forEach(initializableField -> avroField(builder, initializableField));
     verbatimFields.values().forEach(initializableField -> avroField(builder, initializableField));
     return builder.endRecord();
-  }
-
-  /**
-   * Generates the Hive query file used for IUCN's custom format downloads.
-   */
-  private static void generateIucnQueryHQL(Configuration cfg, File outDir) throws IOException, TemplateException {
-    try (FileWriter out = new FileWriter(new File(outDir, "execute-iucn-query.q"))) {
-      Template template = cfg.getTemplate("iucn-download/execute-iucn-query.ftl");
-      Map<String, Object> data = ImmutableMap.of(
-        "verbatimFields", AVRO_QUERIES.selectVerbatimFields(),
-        "interpretedFields", AVRO_QUERIES.selectInterpretedFields(true),
-        "internalFields", AVRO_QUERIES.selectInternalFields(true)
-      );
-      template.process(data, out);
-    }
   }
 
   /**

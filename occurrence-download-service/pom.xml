@@ -1,11 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <parent>
     <artifactId>occurrence-motherpom</artifactId>
     <groupId>org.gbif.occurrence</groupId>
-    <version>0.188-SNAPSHOT</version>
+    <version>0.195.9-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
@@ -42,6 +40,10 @@
     <dependency>
       <groupId>org.gbif</groupId>
       <artifactId>dwc-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.gbif.common</groupId>
+      <artifactId>gbif-postal-service</artifactId>
     </dependency>
     <dependency>
       <groupId>com.google.guava</groupId>
@@ -236,6 +238,14 @@
       <groupId>de.codecentric</groupId>
       <artifactId>spring-boot-admin-starter-client</artifactId>
     </dependency>
+    <dependency>
+      <groupId>org.springdoc</groupId>
+      <artifactId>springdoc-openapi-ui</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.swagger.core.v3</groupId>
+      <artifactId>swagger-annotations</artifactId>
+    </dependency>
 
     <!-- Serialization -->
     <dependency>
@@ -243,12 +253,8 @@
       <artifactId>jackson-core</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.github.erosb</groupId>
-      <artifactId>everit-json-schema</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.kjetland</groupId>
-      <artifactId>mbknor-jackson-jsonschema_2.12</artifactId>
+      <groupId>org.json</groupId>
+      <artifactId>json</artifactId>
     </dependency>
     <dependency>
       <groupId>org.freemarker</groupId>

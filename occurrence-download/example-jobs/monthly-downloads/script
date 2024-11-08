@@ -13,18 +13,18 @@ function waitDl() {
 
 for i in \
   monthly-everything-mol.json \
-    cloud-upload-simple-parquet.json \
-    monthly-georeferenced-csv.json monthly-present-csv.json monthly-everything-csv.json monthly-ebird-csv.json \
-    monthly-georeferenced-dwc.json monthly-present-dwc.json monthly-everything-dwc.json \
-    monthly-everything-avro.json
+  cloud-upload-simple-parquet.json \
+  monthly-everything-csv.json monthly-everything-dwc.json \
+  monthly-ebird-csv.json monthly-present-csv.json monthly-georeferenced-csv.json monthly-georeferenced-present-csv.json \
+  monthly-ebird-dwc.json monthly-present-dwc.json monthly-georeferenced-dwc.json monthly-georeferenced-present-dwc.json
 do
+  waitDl 3
   echo "Starting download '$i'"
   curl -Ssi --user $GBIF_AUTH -H "Content-Type: application/json" -X POST -d @$i 'https://api.gbif.org/v1/occurrence/download/request'
   echo
   echo
   sleep 1m
-  waitDl 3
 done
 
 echo
-echo "Monthly downloads completed.  Now upload the MoL one to GCS."
+echo "Monthly downloads completed."

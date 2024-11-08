@@ -13,43 +13,6 @@
  */
 package org.gbif.occurrence.download.service;
 
-import org.gbif.api.exception.ServiceUnavailableException;
-import org.gbif.api.model.occurrence.Download;
-import org.gbif.api.model.occurrence.DownloadRequest;
-import org.gbif.api.model.occurrence.PredicateDownloadRequest;
-import org.gbif.api.service.occurrence.DownloadRequestService;
-import org.gbif.api.service.registry.OccurrenceDownloadService;
-import org.gbif.occurrence.common.download.DownloadUtils;
-import org.gbif.occurrence.download.service.workflow.DownloadWorkflowParametersBuilder;
-import org.gbif.occurrence.mail.BaseEmailModel;
-import org.gbif.occurrence.mail.EmailSender;
-import org.gbif.occurrence.mail.OccurrenceEmailManager;
-
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
-import java.util.Date;
-import java.util.EnumSet;
-import java.util.Map;
-import java.util.Set;
-
-import javax.annotation.Nullable;
-
-import org.apache.oozie.client.Job;
-import org.apache.oozie.client.OozieClient;
-import org.apache.oozie.client.OozieClientException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Component;
-import org.springframework.web.server.ResponseStatusException;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Enums;
 import com.google.common.base.Optional;
@@ -58,11 +21,51 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.oozie.client.Job;
+import org.apache.oozie.client.OozieClient;
+import org.apache.oozie.client.OozieClientException;
+import org.gbif.api.exception.QueryBuildingException;
+import org.gbif.api.exception.ServiceUnavailableException;
+import org.gbif.api.model.occurrence.Download;
+import org.gbif.api.model.occurrence.DownloadRequest;
+import org.gbif.api.model.occurrence.PredicateDownloadRequest;
+import org.gbif.api.model.occurrence.SqlDownloadRequest;
+import org.gbif.api.service.occurrence.DownloadRequestService;
+import org.gbif.api.service.registry.OccurrenceDownloadService;
+import org.gbif.common.messaging.api.MessagePublisher;
+import org.gbif.common.messaging.api.messages.DownloadCancelMessage;
+import org.gbif.common.messaging.api.messages.DownloadLauncherMessage;
+import org.gbif.occurrence.download.util.SqlValidation;
+import org.gbif.occurrence.mail.BaseEmailModel;
+import org.gbif.occurrence.mail.EmailSender;
+import org.gbif.occurrence.mail.OccurrenceEmailManager;
+import org.gbif.occurrence.query.sql.HiveSqlQuery;
+import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Component;
+import org.springframework.web.server.ResponseStatusException;
+
+import javax.annotation.Nullable;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.Date;
+import java.util.EnumSet;
+import java.util.Set;
 
 import static org.gbif.occurrence.common.download.DownloadUtils.downloadLink;
 import static org.gbif.occurrence.download.service.Constants.NOTIFY_ADMIN;
 
 @Component
+@Slf4j
 public class DownloadRequestServiceImpl implements DownloadRequestService, CallbackService {
 
   private static final Logger LOG = LoggerFactory.getLogger(DownloadRequestServiceImpl.class);
@@ -71,6 +74,8 @@ public class DownloadRequestServiceImpl implements DownloadRequestService, Callb
 
   protected static final Set<Download.Status> RUNNING_STATUSES =
       EnumSet.of(Download.Status.PREPARING, Download.Status.RUNNING, Download.Status.SUSPENDED);
+
+  private final SqlValidation sqlValidation = new SqlValidation();
 
   /** Map to provide conversions from oozie.Job.Status to Download.Status. */
   @VisibleForTesting
@@ -101,36 +106,38 @@ public class DownloadRequestServiceImpl implements DownloadRequestService, Callb
       Metrics.newCounter(CallbackService.class, "cancelled_downloads");
 
   private final OozieClient client;
+  private final DownloadIdService downloadIdService;
   private final String portalUrl;
   private final String wsUrl;
   private final File downloadMount;
   private final OccurrenceDownloadService occurrenceDownloadService;
-  private final DownloadWorkflowParametersBuilder parametersBuilder;
   private final OccurrenceEmailManager emailManager;
   private final EmailSender emailSender;
 
   private final DownloadLimitsService downloadLimitsService;
+  private final MessagePublisher messagePublisher;
 
   @Autowired
   public DownloadRequestServiceImpl(
       OozieClient client,
-      @Qualifier("oozie.default_properties") Map<String, String> defaultProperties,
       @Value("${occurrence.download.portal.url}") String portalUrl,
       @Value("${occurrence.download.ws.url}") String wsUrl,
       @Value("${occurrence.download.ws.mount}") String wsMountDir,
       OccurrenceDownloadService occurrenceDownloadService,
       DownloadLimitsService downloadLimitsService,
       OccurrenceEmailManager emailManager,
-      EmailSender emailSender) {
+      EmailSender emailSender,
+      MessagePublisher messagePublisher) {
+    this.downloadIdService = new DownloadIdService();
     this.client = client;
     this.portalUrl = portalUrl;
     this.wsUrl = wsUrl;
     this.downloadMount = new File(wsMountDir);
     this.occurrenceDownloadService = occurrenceDownloadService;
-    this.parametersBuilder = new DownloadWorkflowParametersBuilder(defaultProperties);
     this.downloadLimitsService = downloadLimitsService;
     this.emailManager = emailManager;
     this.emailSender = emailSender;
+    this.messagePublisher = messagePublisher;
   }
 
   @Override
@@ -140,14 +147,16 @@ public class DownloadRequestServiceImpl implements DownloadRequestService, Callb
       if (download != null) {
         if (RUNNING_STATUSES.contains(download.getStatus())) {
           updateDownloadStatus(download, Download.Status.CANCELLED);
-          client.kill(DownloadUtils.downloadToWorkflowId(downloadKey));
-          LOG.info("Download {} cancelled", downloadKey);
+
+          messagePublisher.send(new DownloadCancelMessage(downloadKey));
+
+          log.info("Download {} cancelled", downloadKey);
         }
       } else {
         throw new ResponseStatusException(
             HttpStatus.NOT_FOUND, String.format("Download %s not found", downloadKey));
       }
-    } catch (OozieClientException e) {
+    } catch (Exception e) {
       throw new ServiceUnavailableException("Failed to cancel download " + downloadKey, e);
     }
   }
@@ -156,35 +165,58 @@ public class DownloadRequestServiceImpl implements DownloadRequestService, Callb
   public String create(DownloadRequest request, String source) {
     LOG.debug("Trying to create download from request [{}]", request);
     Preconditions.checkNotNull(request);
+
     if (request instanceof PredicateDownloadRequest) {
       PredicateValidator.validate(((PredicateDownloadRequest) request).getPredicate());
+    } else if (request instanceof SqlDownloadRequest) {
+      try {
+        HiveSqlQuery sqlQuery = sqlValidation.validateAndParse(((SqlDownloadRequest) request).getSql());
+      } catch (QueryBuildingException qbe) {
+        // Shouldn't happen, as the query has already been validated by this point.
+        throw new RuntimeException(qbe);
+      }
     }
+
+    String exceedComplexityLimit = null;
     try {
-      String exceedComplexityLimit = downloadLimitsService.exceedsDownloadComplexity(request);
-      if (exceedComplexityLimit != null) {
-        LOG.info("Download request refused as it would exceed complexity limits");
-        throw new ResponseStatusException(
-            HttpStatus.PAYLOAD_TOO_LARGE,
-            "A download limitation is exceeded:\n" + exceedComplexityLimit + "\n");
-      }
+      exceedComplexityLimit = downloadLimitsService.exceedsDownloadComplexity(request);
+    } catch (Exception e) {
+      throw new ServiceUnavailableException(
+          "Failed to create download job while checking download complexity", e);
+    }
+    if (exceedComplexityLimit != null) {
+      LOG.info("Download request refused as it would exceed complexity limits");
+      throw new ResponseStatusException(
+          HttpStatus.PAYLOAD_TOO_LARGE,
+          "A download limitation is exceeded:\n" + exceedComplexityLimit + "\n");
+    }
 
-      String exceedSimultaneousLimit =
+    String exceedSimultaneousLimit = null;
+    try {
+      exceedSimultaneousLimit =
           downloadLimitsService.exceedsSimultaneousDownloadLimit(request.getCreator());
-      if (exceedSimultaneousLimit != null) {
-        LOG.info("Download request refused as it would exceed simultaneous limits");
-        // Keep HTTP 420 ("Enhance your calm") here.
-        throw new ResponseStatusException(
-            HttpStatus.METHOD_FAILURE,
-            "A download limitation is exceeded:\n" + exceedSimultaneousLimit + "\n");
-      }
+    } catch (Exception e) {
+      throw new ServiceUnavailableException(
+          "Failed to create download job while checking simultaneous download limit", e);
+    }
+    if (exceedSimultaneousLimit != null) {
+      LOG.info("Download request refused as it would exceed simultaneous limits");
+      // Keep HTTP 420 ("Enhance your calm") here.
+      throw new ResponseStatusException(
+          HttpStatus.METHOD_FAILURE,
+          "A download limitation is exceeded:\n" + exceedSimultaneousLimit + "\n");
+    }
 
-      String jobId = client.run(parametersBuilder.buildWorkflowParameters(request));
-      LOG.debug("Oozie job id is: [{}]", jobId);
-      String downloadId = DownloadUtils.workflowToDownloadId(jobId);
+    try {
+      String downloadId = downloadIdService.generateId();
+      log.debug("Download id is: [{}]", downloadId);
       persistDownload(request, downloadId, source);
+
+      log.debug("Send message to the download launcher queue");
+      messagePublisher.send(new DownloadLauncherMessage(downloadId, request));
+
       return downloadId;
-    } catch (OozieClientException e) {
-      LOG.error("Failed to create download job", e);
+    } catch (Exception e) {
       throw new ServiceUnavailableException("Failed to create download job", e);
     }
   }
@@ -204,21 +236,53 @@ public class DownloadRequestServiceImpl implements DownloadRequestService, Callb
             HttpStatus.NOT_FOUND, "Download " + downloadKey + " doesn't exist");
       }
 
-      if (d.getStatus() == Download.Status.FILE_ERASED) {
-        throw new ResponseStatusException(
-            HttpStatus.GONE, "Download " + downloadKey + " has been erased\n");
-      }
-
-      if (!d.isAvailable()) {
-        throw new ResponseStatusException(
-            HttpStatus.NOT_FOUND, "Download " + downloadKey + " is not ready yet");
-      }
+      checkDownloadPreConditions(downloadKey, d);
 
       filename = getDownloadFilename(d);
     } else {
       filename = downloadKey + ".zip";
     }
 
+    return getDownloadFile(filename, downloadKey);
+  }
+
+  @Override
+  public File getResultFile(Download download) {
+    String filename;
+
+    if (download == null || download.getKey() == null) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Download can't be null");
+    }
+
+    String downloadKey = download.getKey();
+
+    // avoid check for download in the registry if we have secret non download files with a magic
+    // prefix!
+    if (!downloadKey.toLowerCase().startsWith(NON_DOWNLOAD_PREFIX)) {
+      checkDownloadPreConditions(downloadKey, download);
+
+      filename = getDownloadFilename(download);
+    } else {
+      filename = downloadKey + ".zip";
+    }
+
+    return getDownloadFile(filename, downloadKey);
+  }
+
+  private static void checkDownloadPreConditions(String downloadKey, Download d) {
+    if (d.getStatus() == Download.Status.FILE_ERASED) {
+      throw new ResponseStatusException(
+          HttpStatus.GONE, "Download " + downloadKey + " has been erased\n");
+    }
+
+    if (!d.isAvailable()) {
+      throw new ResponseStatusException(
+          HttpStatus.NOT_FOUND, "Download " + downloadKey + " is not ready yet");
+    }
+  }
+
+  @NotNull
+  private File getDownloadFile(String filename, String downloadKey) {
     File localFile = new File(downloadMount, filename);
     if (localFile.canRead()) {
       return localFile;
@@ -233,7 +297,7 @@ public class DownloadRequestServiceImpl implements DownloadRequestService, Callb
   public InputStream getResult(String downloadKey) {
     File localFile = getResultFile(downloadKey);
     try {
-      return new FileInputStream(localFile);
+      return Files.newInputStream(localFile.toPath());
     } catch (IOException e) {
       throw new IllegalStateException(
           "Failed to read download " + downloadKey + " from " + localFile.getAbsolutePath(), e);
@@ -248,9 +312,15 @@ public class DownloadRequestServiceImpl implements DownloadRequestService, Callb
         !Strings.isNullOrEmpty(status), "<status> may not be null or empty");
     Optional<Job.Status> opStatus = Enums.getIfPresent(Job.Status.class, status.toUpperCase());
     Preconditions.checkArgument(opStatus.isPresent(), "<status> the requested status is not valid");
-    String downloadId = DownloadUtils.workflowToDownloadId(jobId);
 
-    LOG.debug("Processing callback for jobId [{}] with status [{}]", jobId, status);
+    String downloadId;
+    try {
+      downloadId = client.getJobInfo(jobId).getExternalId();
+    } catch (OozieClientException e) {
+      throw new RuntimeException(e);
+    }
+
+    LOG.debug("Processing callback for downloadId [{}] with status [{}]", downloadId, status);
 
     Download download = occurrenceDownloadService.get(downloadId);
     if (download == null) {
@@ -284,7 +354,10 @@ public class DownloadRequestServiceImpl implements DownloadRequestService, Callb
 
       case FAILED:
         LOG.error(
-            NOTIFY_ADMIN, "Got callback for failed query. JobId [{}], Status [{}]", jobId, status);
+            NOTIFY_ADMIN,
+            "Got callback for failed query. downloadId [{}], Status [{}]",
+            downloadId,
+            status);
         updateDownloadStatus(download, newStatus);
         emailModel = emailManager.generateFailedDownloadEmailModel(download, portalUrl);
         emailSender.send(emailModel);
@@ -333,7 +406,7 @@ public class DownloadRequestServiceImpl implements DownloadRequestService, Callb
     download.setStatus(Download.Status.PREPARING);
     download.setEraseAfter(Date.from(OffsetDateTime.now(ZoneOffset.UTC).plusMonths(6).toInstant()));
     download.setDownloadLink(
-        downloadLink(wsUrl, downloadId, request.getType(), request.getFormat().getExtension()));
+        downloadLink(wsUrl, downloadId, request.getType(), request.getFileExtension()));
     download.setRequest(request);
     download.setSource(source);
     occurrenceDownloadService.create(download);
@@ -341,8 +414,10 @@ public class DownloadRequestServiceImpl implements DownloadRequestService, Callb
 
   /** Updates the download status and file size. */
   private void updateDownloadStatus(Download download, Download.Status newStatus) {
-    download.setStatus(newStatus);
-    occurrenceDownloadService.update(download);
+    if (download.getStatus() != newStatus) {
+      download.setStatus(newStatus);
+      occurrenceDownloadService.update(download);
+    }
   }
 
   private void updateDownloadStatus(Download download, Download.Status newStatus, long size) {
@@ -353,6 +428,6 @@ public class DownloadRequestServiceImpl implements DownloadRequestService, Callb
 
   /** The download filename with extension. */
   private String getDownloadFilename(Download download) {
-    return download.getKey() + download.getRequest().getFormat().getExtension();
+    return download.getKey() + download.getRequest().getFileExtension();
   }
 }

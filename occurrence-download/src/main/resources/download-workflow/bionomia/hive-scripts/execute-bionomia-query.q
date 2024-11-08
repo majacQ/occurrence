@@ -6,8 +6,10 @@
 
 USE ${hiveDB};
 
-CREATE TEMPORARY FUNCTION toLocalISO8601 AS 'org.gbif.occurrence.hive.udf.ToLocalISO8601UDF';
 CREATE TEMPORARY FUNCTION contains AS 'org.gbif.occurrence.hive.udf.ContainsUDF';
+CREATE TEMPORARY FUNCTION geoDistance AS 'org.gbif.occurrence.hive.udf.GeoDistanceUDF';
+CREATE TEMPORARY FUNCTION toISO8601 AS 'org.gbif.occurrence.hive.udf.ToISO8601UDF';
+CREATE TEMPORARY FUNCTION toLocalISO8601 AS 'org.gbif.occurrence.hive.udf.ToLocalISO8601UDF';
 CREATE TEMPORARY FUNCTION stringArrayContains AS 'org.gbif.occurrence.hive.udf.StringArrayContainsGenericUDF';
 
 -- don't run joins locally, else risk running out of memory
@@ -34,7 +36,7 @@ AS SELECT
   -- Interpreted terms
   countryCode,
   toLocalISO8601(dateidentified) AS dateIdentified,
-  toLocalISO8601(eventdate) AS eventDate,
+  toLocalISO8601(eventdategte) AS eventDate,
   array_contains(mediaType, 'StillImage') AS hasImage,
   kingdom,
   family,

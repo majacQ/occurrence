@@ -13,12 +13,15 @@
  */
 package org.gbif.occurrence.download.service.conf;
 
-import org.gbif.api.model.occurrence.predicate.Predicate;
+import org.gbif.api.exception.QueryBuildingException;
+import org.gbif.api.model.predicate.Predicate;
+import org.gbif.occurrence.download.util.SqlValidation;
 import org.gbif.occurrence.query.PredicateCounter;
 import org.gbif.occurrence.query.PredicateGeometryPointCounter;
 
 import java.util.Iterator;
 
+import org.gbif.occurrence.query.sql.HiveSqlQuery;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -58,6 +61,7 @@ public class DownloadLimits {
   private static final Splitter COMMA_SPLITTER = Splitter.on(',');
   private final PredicateCounter predicateCounter = new PredicateCounter();
   private final PredicateGeometryPointCounter predicateGeometryPointCounter = new PredicateGeometryPointCounter();
+  private final SqlValidation sqlValidation = new SqlValidation();
 
   private final int maxUserDownloads;
   private final Limit softLimit;
@@ -118,6 +122,31 @@ public class DownloadLimits {
     Integer count = predicateCounter.count(p);
     if (count > maxPredicates) {
       return "The request contains "+count+" predicate items.  The maximum is "+maxPredicates+".";
+    }
+
+    return null;
+  }
+
+  public String violatesSqlFilterRules(String userSql) {
+    // Find any Within functions and check the geometry is not too large.
+    // Count the total number of query values.
+    HiveSqlQuery sqlQuery;
+    try {
+      sqlQuery = sqlValidation.validateAndParse(userSql);
+    } catch (QueryBuildingException qbe) {
+      // Shouldn't happen as the query has already been validated.
+      throw new RuntimeException(qbe);
+    }
+
+    Integer points = sqlQuery.getPointsCount();
+    if (points > maxPoints) {
+      return "The geometry (or geometries) contains "+points+" points.  The maximum is "+maxPoints+".";
+    }
+
+    // Count the total expanded number of predicates.
+    Integer count = sqlQuery.getPredicateCount();
+    if (count > maxPredicates) {
+      return "The request contains "+count+" query components.  The maximum is "+maxPredicates+".";
     }
 
     return null;

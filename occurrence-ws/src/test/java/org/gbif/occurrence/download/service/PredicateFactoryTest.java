@@ -30,7 +30,7 @@ public class PredicateFactoryTest {
 
     // Valid predicate should pass
     Map<String, String[]> params = new HashMap<>();
-    params.put(OccurrenceSearchParameter.GEOMETRY.name(), new String[] {"POLYGON ((30 10, 10 20, 20 40, 40 40, 30 10))"});
+    params.put(OccurrenceSearchParameter.GEOMETRY.name(), new String[] {"POLYGON ((30 10, 40 40, 20 40, 10 20, 30 10))"});
 
     assertNotNull(PredicateFactory.build(params));
 
@@ -67,6 +67,7 @@ public class PredicateFactoryTest {
     params.put(OccurrenceSearchParameter.OCCURRENCE_STATUS.name(), new String[] {"present"});
     params.put(OccurrenceSearchParameter.CATALOG_NUMBER.name(), new String[] {"A", "B", "C"});
     params.put(OccurrenceSearchParameter.YEAR.name(), new String[] {"*,1980", "1990", "2000,2010"});
+    params.put(OccurrenceSearchParameter.EVENT_DATE.name(), new String[] {"*,1980", "1990", "2000,2010", "2023-09"});
 
     assertNotNull(PredicateFactory.build(params));
   }

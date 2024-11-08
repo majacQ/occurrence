@@ -32,7 +32,7 @@ import static org.gbif.occurrence.download.hive.HiveColumns.columnFor;
 import static org.gbif.occurrence.download.hive.HiveColumns.getVerbatimColPrefix;
 
 /**
- * This provides the definition required to construct the occurrence hdfs table, for use as a Hive table.
+ * This provides the definition required to construct the occurrence HDFS table, for use as a Hive table.
  * The table is populated by a query which scans the Avro files, but along the way converts some fields to
  * e.g. Hive arrays which requires some UDF voodoo captured here.
  * <p/>
@@ -58,7 +58,10 @@ public class OccurrenceHDFSTableDefinition {
           DwcTerm.identifiedBy,
           DwcTerm.otherCatalogNumbers,
           DwcTerm.preparations,
-          DwcTerm.samplingProtocol);
+          DwcTerm.samplingProtocol,
+          DwcTerm.higherGeography,
+          DwcTerm.georeferencedBy,
+          DwcTerm.associatedSequences);
 
   /**
    * Assemble the mapping for verbatim fields.
@@ -86,7 +89,7 @@ public class OccurrenceHDFSTableDefinition {
                                       .put(GbifTerm.datasetKey, columnFor(GbifTerm.datasetKey))
                                       .put(GbifTerm.protocol, columnFor(GbifTerm.protocol))
                                       .put(GbifTerm.publishingCountry, columnFor(GbifTerm.publishingCountry))
-                                      .put(GbifTerm.eventType, columnFor(GbifTerm.eventType))
+                                      .put(DwcTerm.eventType, columnFor(DwcTerm.eventType))
                                       .put(IucnTerm.iucnRedListCategory, columnFor(IucnTerm.iucnRedListCategory))
                                       .build();
 
@@ -115,11 +118,13 @@ public class OccurrenceHDFSTableDefinition {
                                                       .put(GbifInternalTerm.installationKey, columnFor(GbifInternalTerm.installationKey))
                                                       .put(GbifInternalTerm.institutionKey, columnFor(GbifInternalTerm.institutionKey))
                                                       .put(GbifInternalTerm.collectionKey, columnFor(GbifInternalTerm.collectionKey))
-                                                      .put(GbifInternalTerm.projectId, columnFor(GbifInternalTerm.projectId))
+                                                      .put(GbifTerm.projectId, columnFor(GbifTerm.projectId))
                                                       .put(GbifInternalTerm.programmeAcronym, columnFor(GbifInternalTerm.programmeAcronym))
                                                       .put(GbifInternalTerm.hostingOrganizationKey, columnFor(GbifInternalTerm.hostingOrganizationKey))
                                                       .put(GbifInternalTerm.isInCluster, columnFor(GbifInternalTerm.isInCluster))
                                                       .put(GbifInternalTerm.dwcaExtension, columnFor(GbifInternalTerm.dwcaExtension))
+                                                      .put(GbifInternalTerm.eventDateGte, columnFor(GbifInternalTerm.eventDateGte))
+                                                      .put(GbifInternalTerm.eventDateLte, columnFor(GbifInternalTerm.eventDateLte))
                                             .build();
     ImmutableList.Builder<InitializableField> builder = ImmutableList.builder();
     for (GbifInternalTerm t : GbifInternalTerm.values()) {

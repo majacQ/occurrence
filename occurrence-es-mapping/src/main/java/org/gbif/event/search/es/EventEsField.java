@@ -51,7 +51,7 @@ public enum EventEsField implements EsField {
   NETWORK_KEY(new BaseEsField("metadata.networkKeys", GbifInternalTerm.networkKey)),
   PROTOCOL(new BaseEsField("metadata.protocol", GbifTerm.protocol)),
   LICENSE(new BaseEsField("metadata.license", DcTerm.license)),
-  PROJECT_ID(new BaseEsField("metadata.projectId", GbifInternalTerm.projectId)),
+  PROJECT_ID(new BaseEsField("metadata.projectId", GbifTerm.projectId)),
   PROGRAMME(new BaseEsField("metadata.programmeAcronym", GbifInternalTerm.programmeAcronym)),
 
   //Core identification
@@ -78,7 +78,10 @@ public enum EventEsField implements EsField {
   YEAR(new BaseEsField("event.year", DwcTerm.year)),
   MONTH(new BaseEsField("event.month", DwcTerm.month)),
   DAY(new BaseEsField("event.day", DwcTerm.day)),
-  EVENT_DATE(new BaseEsField("event.eventDateSingle", DwcTerm.eventDate)),
+  EVENT_DATE(new BaseEsField("event.eventDate", DwcTerm.eventDate)),
+  EVENT_DATE_INTERVAL(new BaseEsField("event.eventDateInterval", EsField.EVENT_DATE_INTERVAL)),
+  START_DAY_OF_YEAR(new BaseEsField("event.startDayOfYear", DwcTerm.startDayOfYear)),
+  END_DAY_OF_YEAR(new BaseEsField("event.endDayOfYear", DwcTerm.endDayOfYear)),
 
   //Location
   COORDINATE_SHAPE(new BaseEsField("event.scoordinates", null)),
@@ -190,9 +193,7 @@ public enum EventEsField implements EsField {
   EXTENSIONS(new BaseEsField("event.extensions", GbifInternalTerm.dwcaExtension)),
 
   //Event
-  START_DAY_OF_YEAR(new BaseEsField("event.startDayOfYear", DwcTerm.startDayOfYear)),
-  END_DAY_OF_YEAR(new BaseEsField("event.endDayOfYear", DwcTerm.startDayOfYear)),
-  EVENT_TYPE(new BaseEsField("event.eventType", GbifTerm.eventType)),
+  EVENT_TYPE(new BaseEsField("event.eventType", DwcTerm.eventType)),
   LOCATION_ID(new BaseEsField("event.locationID", DwcTerm.locationID)),
   PARENTS_LINEAGE(new BaseEsField("event.parentsLineage", UnknownTerm.build("event.parentsLineage"))),
 
@@ -296,6 +297,7 @@ public enum EventEsField implements EsField {
       .put(OccurrenceSearchParameter.OTHER_CATALOG_NUMBERS, OTHER_CATALOG_NUMBERS)
       .put(OccurrenceSearchParameter.PREPARATIONS, PREPARATIONS)
       .put(OccurrenceSearchParameter.DISTANCE_FROM_CENTROID_IN_METERS, DISTANCE_FROM_CENTROID_IN_METERS)
+      .put(OccurrenceSearchParameter.GBIF_ID, GBIF_ID)
       .build();
 
   private static final Set<EsField> DATE_FIELDS =

@@ -23,7 +23,7 @@ import org.apache.hadoop.hive.ql.exec.UDF;
 import org.apache.hadoop.io.Text;
 
 /**
- * A simple UDF for Hive to convert a date/long to an string in ISO 8601 format.
+ * A simple UDF for Hive to convert a date/long to a string in ISO 8601 format.
  * If the input value is null or can't be parsed, and empty string is returned.
  */
 @Description(
@@ -38,7 +38,7 @@ public class ToISO8601UDF extends UDF {
       return null;
     } else {
       try {
-        text.set(DownloadUtils.ISO_8601_ZONED.format(Instant.ofEpochMilli(Long.parseLong(field.toString())).atZone(ZoneOffset.UTC)));
+        text.set(DownloadUtils.ISO_8601_ZONED.format(Instant.ofEpochSecond(Long.parseLong(field.toString())).atZone(ZoneOffset.UTC)));
         return text;
       } catch (NumberFormatException e) {
         return null;
